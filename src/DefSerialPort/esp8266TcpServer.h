@@ -14,6 +14,7 @@ class CEsp8266TcpServer
 	}
 
 	void GetVersion();
+	void SetRst();
 
 private:
 	CDefSerialPort m_spMain;
