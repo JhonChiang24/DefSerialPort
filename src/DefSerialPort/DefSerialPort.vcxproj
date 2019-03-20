@@ -77,6 +77,7 @@
   <ItemGroup>
     <ClInclude Include="CriticalSection.h" />
     <ClInclude Include="DefSerialPort.h" />
+    <ClInclude Include="esp8266TcpServer.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -84,6 +85,7 @@
     <ClCompile Include="CriticalSection.cpp" />
     <ClCompile Include="Def.cpp" />
     <ClCompile Include="DefSerialPort.cpp" />
+    <ClCompile Include="esp8266TcpServer.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>

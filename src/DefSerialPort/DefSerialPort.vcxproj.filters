@@ -16,6 +16,9 @@
     <Filter Include="def">
       <UniqueIdentifier>{61351897-0a16-4a65-b73c-cce2b7149117}</UniqueIdentifier>
     </Filter>
+    <Filter Include="esp8266_tcpserver">
+      <UniqueIdentifier>{d0420cc0-f816-43cb-b14d-412dfec7a4f8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.txt" />
@@ -33,6 +36,9 @@
     <ClInclude Include="DefSerialPort.h">
       <Filter>def</Filter>
     </ClInclude>
+    <ClInclude Include="esp8266TcpServer.h">
+      <Filter>esp8266_tcpserver</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -46,6 +52,9 @@
     </ClCompile>
     <ClCompile Include="Def.cpp">
       <Filter>def</Filter>
+    </ClCompile>
+    <ClCompile Include="esp8266TcpServer.cpp">
+      <Filter>esp8266_tcpserver</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
