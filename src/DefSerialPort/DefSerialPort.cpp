@@ -6,7 +6,11 @@ CDefSerialPort::CDefSerialPort()
 	,m_hPort(INVALID_HANDLE_VALUE)
 	,m_bThreadOut(true)
 	,m_hThread(NULL)
+	,m_UserPtr(NULL)
 {
+	m_osRead.hEvent=NULL;
+	m_osWrite.hEvent=NULL;
+	m_osWait.hEvent=NULL;
 }
 
 CDefSerialPort::~CDefSerialPort()
@@ -14,7 +18,7 @@ CDefSerialPort::~CDefSerialPort()
 	Stop();
 }
 
-BOOL CDefSerialPort::Start(const char *pComNum,const char *pSettings,const __CBFun& fun)
+BOOL CDefSerialPort::Start(const char *pComNum,const char *pSettings,const __CBFun& fun,void *pUserPtr)
 {
 	CMakeCritical cri(m_mtxOpt);
 
@@ -22,6 +26,7 @@ BOOL CDefSerialPort::Start(const char *pComNum,const char *pSettings,const __CBF
 		return FALSE;
 
 	m_cbFun=fun;
+	m_UserPtr=pUserPtr;
 	int iBaud=0,iByteSize=0,iStopBits=0;
 	char cParity='\0';
 	sscanf_s(pSettings,"%d,%c,%d,%d",&iBaud,&cParity,1,&iByteSize,&iStopBits);
@@ -154,19 +159,28 @@ void CDefSerialPort::_SetEvent()
 {
 	memset(&m_osRead,0,sizeof(OVERLAPPED));
 	memset(&m_osWrite,0,sizeof(OVERLAPPED));
+	memset(&m_osWait,0,sizeof(OVERLAPPED));
 	m_osRead.hEvent=CreateEvent(NULL,TRUE,FALSE,NULL);//手动置位,初始非触发(释放)
 	m_osWrite.hEvent=CreateEvent(NULL,TRUE,FALSE,NULL);
+	m_osWait.hEvent=CreateEvent(NULL,TRUE,FALSE,NULL);
+
+/*	DWORD dwEvtMask=0;
+	GetCommMask(m_hPort,&dwEvtMask);
+ 	dwEvtMask|=EV_RXCHAR;
+ 	SetCommMask(m_hPort,dwEvtMask); */
 }
 
 void CDefSerialPort::_ReleaseEvent()
 {
-	if(m_osRead.hEvent!=NULL&&m_osWrite.hEvent!=NULL)
+	if(m_osRead.hEvent!=NULL&&m_osWrite.hEvent!=NULL&&m_osWait.hEvent!=NULL)
 	{
 		CloseHandle(m_osRead.hEvent);
 		CloseHandle(m_osWrite.hEvent);
+		CloseHandle(m_osWait.hEvent);
 	}
 	m_osRead.hEvent=NULL;
 	m_osWrite.hEvent=NULL;
+	m_osWait.hEvent=NULL;
 }
 
 BOOL CDefSerialPort::Send(const char *pBuf,size_t szLen)
@@ -184,7 +198,11 @@ BOOL CDefSerialPort::Send(const char *pBuf,size_t szLen)
 	{
 		if(GetLastError()==ERROR_IO_PENDING)
 		{
-			GetOverlappedResult(m_hPort,&m_osWrite,&dwBytesWritten,TRUE);
+			while(!GetOverlappedResult(m_hPort,&m_osWrite,&dwBytesWritten,TRUE))
+			{
+				if(GetLastError() == ERROR_IO_INCOMPLETE) 
+ 					continue;
+			}
 			if(dwBytesWritten!=szLen)
 				return FALSE;
 		}
@@ -197,11 +215,20 @@ BOOL CDefSerialPort::Send(const char *pBuf,size_t szLen)
 
 size_t CDefSerialPort::Recv(char *pRecv,size_t szLen)
 {
-	DWORD dwBytesRead=0,dwErrorFlags=0;//,dwEvtMask=0;
+	DWORD dwBytesRead=0,dwErrorFlags=0,dwEvtMask=0;
 
-	/*ResetEvent(m_osRead.hEvent);//手动置位(无信号)
-	if(!WaitCommEvent(m_hndBuf,&dwEvtMask,&m_osRead)||dwEvtMask!=EV_RXCHAR)//因为HANDLE为异步则为非阻塞(猜想)
-		return dwBytesRead;*/
+/*	ResetEvent(m_osWait.hEvent);
+	BOOL BWait=WaitCommEvent(m_hPort,&dwEvtMask,&m_osWait);
+	if(!BWait)
+	{
+		if(GetLastError()==ERROR_IO_PENDING)
+			WaitForSingleObject(m_osWait.hEvent, INFINITE);
+		else
+			return 0;
+	}
+
+ 	if((dwEvtMask & EV_RXCHAR) != EV_RXCHAR)
+		return 0;  */
 
 	ClearCommError(m_hPort,&dwErrorFlags,&m_comRead);//清除通信错误(会清空上次已接收的缓冲区),并获取通信缓冲区状态
 	if(m_comRead.cbInQue<=0)
@@ -212,9 +239,13 @@ size_t CDefSerialPort::Recv(char *pRecv,size_t szLen)
 	if(!bReadStatus)
 	{
 		if(GetLastError()==ERROR_IO_PENDING)
-			GetOverlappedResult(m_hPort,&m_osRead,&dwBytesRead,TRUE);
+			while(!GetOverlappedResult(m_hPort,&m_osRead,&dwBytesRead,TRUE))
+			{
+				if(GetLastError() == ERROR_IO_INCOMPLETE) 
+ 					continue;
+			}
 		else
-			return dwBytesRead=0;
+			return (dwBytesRead=0);
 	}
 	return dwBytesRead;
 }
@@ -228,13 +259,14 @@ unsigned int __stdcall CDefSerialPort::thread_Recv(void *lp)
 
 	while(1)
 	{
-		Sleep(2);
+		Sleep(1);
 		if(p->m_bThreadOut)
 			break;
 
+		memset(cRecv,0,MAX_IO_LEN);
 		szLen=p->Recv(cRecv,MAX_IO_LEN);
 		if(szLen>0)
-			p->m_cbFun(cRecv,szLen);
+			p->m_cbFun(cRecv,szLen,p->m_UserPtr);
 	}
 
 	return 0;

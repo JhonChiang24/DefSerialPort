@@ -8,12 +8,12 @@
 class CDefSerialPort
 {
 private:
-	typedef void (* __CBFun)(const char *pBuf,size_t szLen);
+	typedef void (* __CBFun)(const char *pBuf,size_t szLen,void *pUserPtr);
 public:
 	CDefSerialPort();
 	virtual ~CDefSerialPort();
 
-	BOOL Start(const char *pComNum,const char *pSettings,const __CBFun& fun);//("COM1","9600,n,8,1")
+	BOOL Start(const char *pComNum,const char *pSettings,const __CBFun& fun,void *pUserPtr);//("COM1","9600,n,8,1")
 	void Stop();
 	BOOL Send(const char *pBuf,size_t szLen);
 	void GetLocalComs(std::vector<std::string>& vecComs);
@@ -21,12 +21,13 @@ public:
 private:
 	__CCriticalSection m_mtxOpt;
 	__CBFun m_cbFun;
+	void *m_UserPtr;
 	HANDLE m_hPort;//串口句柄
 
 	COMSTAT m_comRead,m_comWrite;
-	OVERLAPPED m_osRead,m_osWrite;
+	OVERLAPPED m_osRead,m_osWrite,m_osWait;
 
-	#define MAX_IO_LEN (1024)
+	#define MAX_IO_LEN (1024*8)
 
 	BOOL SetTimeOut(DWORD dwRinterval,DWORD dwRtotalmultiplier,DWORD dwRtotalconstant,DWORD dwWtotalmultiplier,DWORD dwWtotalconstant);//超时设置
 	BOOL PortSetings(int iBaud,char cParity,int iByteSize,int iStopBits);//串口设置
